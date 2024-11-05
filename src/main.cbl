@@ -16,15 +16,14 @@ WORKING-STORAGE SECTION.
 01 AMPLITUDES.
     05 AMPLITUDE OCCURS 10 TIMES PIC 9V9 VALUE 0.0.
 
-    PROCEDURE DIVISION.
+PROCEDURE DIVISION.
 
 MAIN-LOGIC.
     PERFORM INIT-AMPLITUDES.
 
     PERFORM VALIDATE-AMPLITUDES
     IF TOTAL-PROB NOT = 1.0
-       DISPLAY "Qudit outcome probabilities do not sum to 1: "
-               TOTAL-PROB
+       DISPLAY "Qudit outcome probabilities do not sum to 1: " TOTAL-PROB
        STOP RUN
     END-IF.
 
@@ -33,27 +32,47 @@ MAIN-LOGIC.
     STOP RUN.
 
 INIT-AMPLITUDES.
+    * Initial amplitudes (before normalization)
     MOVE 0.5 TO AMPLITUDE(1).
     MOVE 0.5 TO AMPLITUDE(2).
     MOVE 0.0 TO AMPLITUDE(3).
-    MOVE 0 TO I.
+
+    * Normalize the amplitudes so that their squared sum equals 1
+    MOVE 0 TO TOTAL-PROB.
+    PERFORM VARYING I FROM 1 BY 1 UNTIL I > NUM-AMPLITUDES
+        MOVE AMPLITUDE(I) TO TMP-AMP
+        COMPUTE TOTAL-PROB = TOTAL-PROB + TMP-AMP * TMP-AMP
+    END-PERFORM.
+
+    * Normalize the amplitudes by dividing by the square root of the total probability
+    PERFORM VARYING I FROM 1 BY 1 UNTIL I > NUM-AMPLITUDES
+        MOVE AMPLITUDE(I) TO TMP-AMP
+        COMPUTE TMP-AMP = TMP-AMP / FUNCTION SQRT(TOTAL-PROB)
+        MOVE TMP-AMP TO AMPLITUDE(I)
+    END-PERFORM.
 
 VALIDATE-AMPLITUDES.
    MOVE 0 TO TOTAL-PROB.
    PERFORM VARYING I FROM 1 BY 1 UNTIL I > NUM-AMPLITUDES
        MOVE AMPLITUDE(I) TO TMP-AMP
        COMPUTE TOTAL-PROB = TOTAL-PROB + TMP-AMP * TMP-AMP
-    END-PERFORM.
+   END-PERFORM.
 
-    MEASURE.
-        MOVE 0 TO CUMULATIVE-PROB.
-        PERFORM VARYING I FROM 1 BY 1 UNTIL I > NUM-AMPLITUDES
-            MOVE AMPLITUDE(I) TO TMP-AMP
-            COMPUTE CUMULATIVE-PROB = CUMULATIVE-PROB + TMP-AMP * TMP-AMP
-            IF OBSERVATION < CUMULATIVE-PROB
-                MOVE I TO RESULT
-                EXIT PERFORM
-            END-IF
-        END-PERFORM.
+   * Ensure the total probability is exactly 1.0 after normalization
+   IF TOTAL-PROB NOT = 1.0
+       DISPLAY "Qudit outcome probabilities do not sum to 1: " TOTAL-PROB
+       STOP RUN
+   END-IF.
+
+MEASURE.
+    MOVE 0 TO CUMULATIVE-PROB.
+    PERFORM VARYING I FROM 1 BY 1 UNTIL I > NUM-AMPLITUDES
+        MOVE AMPLITUDE(I) TO TMP-AMP
+        COMPUTE CUMULATIVE-PROB = CUMULATIVE-PROB + TMP-AMP * TMP-AMP
+        IF OBSERVATION < CUMULATIVE-PROB
+            MOVE I TO RESULT
+            EXIT PERFORM
+        END-IF
+    END-PERFORM.
 
 END PROGRAM QUDIT.
